@@ -1,0 +1,126 @@
+#! /bin/sh
+#~/.bashrc: executed by bash(1) for non-login shells.
+[[ $- != *i* ]] && return
+
+
+cat << "EOF"
+--------------------------------
+--------------@@@@--------------
+--------------@@@@--------------█████████████████████████████████████
+--------------@@@@--------------██,,,████,,,,█,,,,,,,,,████,,,,,,,███
+--------------@@@@--------------██,,,██,,,,████████,,,,██,,,██████,,█
+--------------@@@@--------------██,,,,,,,███████,,,,███████,,,███████
+--------------------------------██,,,,,,,,██████████,,,███████,,,,███
+----------@@&-----&@@-----------██,,,███,,,███,,,███,,,█,,███████,,,█
+-------@@@@@@----&@@@@@@--------██,,,████,,,,██,,,,,,,████,,,,,,,,███
+---@@@@@@@-----------@@@@@@@----█████████████████████████████████████
+---@@%-------------------&@@----
+--------------------------------             QA-Toolbox
+--------------------------------
+EOF
+
+# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
+HISTSIZE=1000
+HISTFILESIZE=2000
+# globally used variables by sourced files
+PRODUCT="k3s"
+AWS_KEY_NAME="YOUR_AWS_KEY_NAME"
+GH_USERNAME="YOUR_GH_USERNAME"
+
+# make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+#it was all yellow
+#PS1='\[\033[33m\]\u@\h:\[\033[34m\]\w\[\033[0m\]\$ '
+
+# ls colors
+alias ls='ls --color=auto'
+if [ -f "$HOME/.dircolors" ]; then
+  eval `dircolors -b "$HOME/.dircolors"`
+elif [ -f "/etc/dircolors" ]; then
+  eval `dircolors -b "/etc/dircolors"`
+elif [ -f "/usr/share/defaults/etc/LS_COLORS" ]; then
+  eval $( dircolors -b /usr/share/defaults/etc/LS_COLORS )
+fi
+
+# GCC diagnostics/colors
+export GCC_COLORS="error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quote=01"
+
+# enable programmable completion features
+# shellcheck disable=SC3044
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    # shellcheck source=/dev/null
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    # shellcheck source=/dev/null
+    . /etc/bash_completion
+  fi
+fi
+#
+# ======================================================================================
+# ============================ ~ CUSTOMIZE ME ~ ========================================
+# ======================================================================================
+#
+# I highly encourage you to play with renaming functions and aliases to your liking.
+# What you type and call should coincide with your internal monologues expectations. 
+# Some of the functions like get.k3s and get.rke2 are redundant just to meet the expectations
+# of my internal monologue when typing. You could just create a new function called get.product or 
+# get.cli which expects you to pass in the name of the product k3s or rke2.
+
+
+# --- the error handling in __cmd_check exits the bash session if it fails and it doesn't correctly print the binary name that is missing. ---
+has_bin() {
+    bin="$(command -v "$1")"
+    if [ -z "$bin" ]; then 
+        echo "error: ${0} requires ${1} to use this function"
+    fi
+}
+
+# --- quickly edit product config file ---
+conf() {
+    _product="${1:-$PRODUCT}"
+    sudo vi /etc/rancher/"${_product}"/config.yaml
+}
+
+# ======================================================================================
+# =========================== ~ SOMEDAY FUNCTIONS ~ ====================================
+# ======================================================================================
+
+# --- curl to pull down patch tests kubectl assert statements ---
+get_tests() {
+    has_bin git
+    git clone https://github.com/rancher/ecm-distro-tools.git && cd ecm-distro-tools/qa/ || return
+}
+
+# --- future home of a to post or redirect kubectl api json results to an http endpoint ---
+post_tests() {
+    has_bin curl
+    has_bin kubectl
+    has_bin jq
+    #curl -X POST -H "Content-type: application/json" -d '{"json":"json"}' http://localhost:8080
+    _your_pub_key_on_remote="${1:-${HOME}/.ssh/id_rsa.pub}"
+    echo "curl -X POST github.api thing"
+    kubectl get nodes -o go-template='{{range .items}}{{println "{\"architecture\": \"" .status.nodeInfo.architecture "\", \"containerRuntimeVersion\": \"" .status.nodeInfo.containerRuntimeVersion "\", \"kernelVersion\": \"" .status.nodeInfo.kernelVersion "\", \"kubeletVersion\": \"" .status.nodeInfo.kubeletVersion "\", \"osImage\": \"" .status.nodeInfo.osImage "\"}"}}{{end}}' \
+    | jq -s | curl -X POST -H "Content-type: application/json" -d https://IP:PORT/webhook/api
+}
+
+# --- helper to print functions in this file ---
+get_help() {
+    _info="${1:-function}"
+    _no_of_lines="${2:-7}"
+    eval "grep -hr ~/.bashrc.d/* -i -e '${_info}' -A '${_no_of_lines}'"
+}
+
+mkdir -p ~/.bashrc.d/ >/dev/null
+mv "$HOME"/bashrc.d/* .bashrc.d/ >/dev/null
+# shellcheck source=/dev/null
+. "${HOME}"/.bashrc.d/get-tools.sh >/dev/null
+# shellcheck source=/dev/null
+. "${HOME}"/.bashrc.d/aws-cli.sh >/dev/null
+# shellcheck source=/dev/null
+. "${HOME}"/.bashrc.d/gh-cli.sh >/dev/null
+# shellcheck source=/dev/null
+. "${HOME}"/.bashrc.d/glorified-aliases.sh >/dev/null
+# shellcheck source=/dev/null
+. "${HOME}"/.bashrc.d/host-config.sh >/dev/null
