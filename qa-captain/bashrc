@@ -83,6 +83,23 @@ conf() {
     sudo vi /etc/rancher/"${_product}"/config.yaml
 }
 
+get_scripts() {
+    has_bin wget
+    has_bin curl
+    wget https://raw.githubusercontent.com/VestigeJ/qa/main/bashrc.d/aws-cli.sh
+    wget https://raw.githubusercontent.com/VestigeJ/qa/main/bashrc.d/gh-cli.sh
+    wget https://raw.githubusercontent.com/VestigeJ/qa/main/bashrc.d/get-tools.sh
+    wget https://raw.githubusercontent.com/VestigeJ/qa/main/bashrc.d/host-config.sh
+    wget https://raw.githubusercontent.com/VestigeJ/qa/main/bashrc.d/glorified-aliases.sh
+    mkdir ~/.bashrc.d
+    mv aws-cli.sh ~/.bashrc.d/
+    mv gh-cli.sh ~/.bashrc.d/
+    mv get-tools.sh ~/.bashrc.d/
+    mv host-config.sh ~/.bashrc.d/
+    mv glorified-aliases.sh ~/.bashrc.d/
+    
+}
+
 # ======================================================================================
 # =========================== ~ SOMEDAY FUNCTIONS ~ ====================================
 # ======================================================================================
