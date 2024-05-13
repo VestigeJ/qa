@@ -38,6 +38,8 @@ alias l='ls -CF'
 
 # --- wrap rke2 setup commands into one ---
 setup_rke2() {
+    _random_num=$(jot -r 1 10 99)
+    hostctl set-hostname jjanes-${_random_num}.qa
     get_rke2;
     set_figs rke2;
     set_etcduser;
@@ -47,6 +49,8 @@ setup_rke2() {
 
 # --- wrap k3s setup commands into one ---
 setup_k3s() {
+    _random_num=$(jot -r 1 10 99)
+    hostctl set-hostname jjanes-${_random_num}.qa
     get_k3s;
     set_figs;
     set_etcduser;
