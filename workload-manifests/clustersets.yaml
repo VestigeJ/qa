@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shared
+  labels:
+    name: shared
+---
+apiVersion: k3k.io/v1alpha1
+kind: ClusterSet
+metadata:
+  name: default
+  namespace: shared
+spec:
+  displayName: Shared-ClusterSet
+  disableNetworkPolicy: false
+  allowedModeTypes:
+  - "shared"
+  podSecurityAdmissionLevel: "baseline"
+  defaultPriorityClass: "lowpriority"
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: virtual
+  labels:
+    name: virtual
+---
+apiVersion: k3k.io/v1alpha1
+kind: ClusterSet
+metadata:
+  name: default
+  namespace: virtual
+spec:
+  displayName: Virtual-ClusterSet
+  disableNetworkPolicy: false
+  allowedModeTypes:
+  - "virtual"
+  podSecurityAdmissionLevel: "baseline"
+  defaultPriorityClass: "lowpriority"
+---
+
+# ClusterSet.spec
+#FIELDS:
+#  allowedNodeTypes             <[]string> AllowedNodeTypes specifies the allowed cluster provisioning modes. Defaults to [shared].
+#  defaultLimits                <Object> DefaultLimits specifies the default resource limits for servers/agents when a cluster in the set doesn't provide any.
+#  defaultNodeSelector          <map[string]string> DefaultNodeSelector specifies the node selector that applies to all clusters (server + agent) in the set.
+#  defaultPriorityClass         <string> DefaultPriorityClass specifies the priorityClassName applied to all pods of all clusters in the set.
+#  disableNetworkPolicy         <boolean> DisableNetworkPolicy indicates whether to disable the creation of a default network policy for cluster isolation.
+#  maxLimits                    <map[string]Object> MaxLimits specifies the maximum resource limits that apply to all clusters (server + agent) in the set.
+#  podSecurityAdmissionLevel    <string> enum: privileged, baseline, restricted PodSecurityAdmissionLevel specifies the pod security admission level applied to the pods in the namespace.

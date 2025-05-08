@@ -7,7 +7,7 @@ metadata:
     k3s-upgrade: server
 spec:
   concurrency: 1
-  version: v1.21.10+k3s1
+  version: v1.31.4+k3s1
   nodeSelector:
     matchExpressions:
       - {key: k3s-upgrade, operator: Exists}
@@ -17,9 +17,9 @@ spec:
       - {key: node-role.kubernetes.io/master, operator: In, values: ["true"]}
   serviceAccountName: system-upgrade
   cordon: true
-  #  drain:
-  #    force: true
-     disableEviction: true
+  # drain:
+  #   force: true
+    disableEviction: true
   upgrade:
     image: rancher/k3s-upgrade
 ---
@@ -32,7 +32,7 @@ metadata:
     k3s-upgrade: agent
 spec:
   concurrency: 2
-  version: v1.21.10+k3s1
+  version: v1.31.4+k3s1
   nodeSelector:
     matchExpressions:
       - {key: k3s-upgrade, operator: Exists}
@@ -48,6 +48,6 @@ spec:
     args: ["prepare", "k3s-server"]
   drain:
     force: true
-     disableEviction: true
+    disableEviction: true
   upgrade:
     image: rancher/k3s-upgrade

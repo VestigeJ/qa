@@ -7,9 +7,10 @@ ghls() {
         _product="${1:-k3s}"
     _user="${2:-$GH_USERNAME}"
     case "$_product" in
-    qa) gh issue ls -R rancher/qa-tasks -a "$_user" ;;
-        rke2) gh issue ls -R rancher/rke2 -a "$_user" ;;
-        k3s) gh issue ls -R k3s-io/k3s -a "$_user" ;;
+        qa) gh issue ls -R rancher/qa-tasks -a "$_user";;
+        rke2) gh issue ls -R rancher/rke2 -a "$_user";;
+        k3s)  gh issue ls -R k3s-io/k3s -a "$_user";;
+        k3k)  gh issue ls -R rancher/k3k -a "$_user";;
         na)
           printf "K3S-ISSUES---------------------------------------"
           gh issue ls -R k3s-io/k3s 
@@ -107,4 +108,11 @@ get_artifacts() {
         # diff --color -s --suppress-common-lines system-agent-installers.txt upgrade-images.txt
     ;;
     esac
+}
+
+get_ghapirate() {
+     gh api\
+  -H "Accept: application/vnd.github+json"\
+  -H "X-Github-Api-Version: 2022-11-28"\
+  /rate_limit
 }

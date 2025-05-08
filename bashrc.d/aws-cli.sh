@@ -12,7 +12,7 @@ make_aws() {
         _key_name="${5:-$AWS_KEY_NAME}" #sometimes region dependent
         _random_num=$(jot -r 1 10 99)
         _name_tag='ResourceType=instance,Tags=[{Key=Name,Value=YOUR-NAME-'$_random_num'}]'
-        #local path_to_config="file://~/path/to/configs/cloud-config.yaml"
+        local path_to_config="file://~/path/to/configs/cloud-config-default.yaml"
         aws ec2 run-instances \
         --image-id ami-"$_ami" \
         --count "$_instance_count" \
@@ -22,7 +22,7 @@ make_aws() {
         --subnet-id subnet-subnet-id \
         --block-device-mapping DeviceName=/dev/sda1,Ebs={VolumeSize="$_ebs_size"} \
         --tag-specifications "$_name_tag" \
-        #--user-data "$path_to_config"
+        --user-data "$path_to_config"
 }
 
 get_aws() {

@@ -77,20 +77,80 @@ authorization: {
 }
 EOF
 sudo mkdir -p /srv/nats/
-sudo cp nats.config /srv/nats/nats.config
+sudo mkdir -p /run/systemd/mount-rootfs/var/lib/nats
+sudo cp nats.config /etc/nats-server.conf
 cat <<'EOF' >> nats.service
-[Unit]
-Description=NATS jetstream messaging server
-
 [Service]
-ExecStart="/usr/bin/nats-server -js -c /srv/nats/nats.config"
+Type=simple
+EnvironmentFile=-/etc/default/nats-server
+ExecStart=/usr/bin/nats-server -js -c /etc/nats-server.conf
+ExecReload=/bin/kill -s HUP $MAINPID
+ExecStop=/bin/kill -s SIGINT $MAINPID
+
 User=nats
-Restart=on-failure
+Group=nats
+
+Restart=always
+RestartSec=5
+# The nats-server uses SIGUSR2 to trigger using Lame Duck Mode (LDM) shutdown
+KillSignal=SIGUSR2
+# You might want to adjust TimeoutStopSec too.
+
+# Capacity Limits
+# JetStream requires 2 FDs open per stream.
+LimitNOFILE=800000
+# Environment=GOMEMLIMIT=12GiB
+# You might find it better to set GOMEMLIMIT via /etc/default/nats-server,
+# so that you can change limits without needing a systemd daemon-reload.
+
+# Hardening
+#NoNewPrivileges=true
+#ProcSubset=pid
+#ProtectClock=true
+#ProtectControlGroups=true
+#ProtectHostname=true
+#ProtectKernelModules=true
+#ProtectKernelTunables=true
+#ProtectSystem=strict
+#RestrictAddressFamilies=AF_INET AF_INET6
+#RestrictRealtime=true
+#RestrictSUIDSGID=true
+#SystemCallFilter=@system-service ~@privileged ~@resources
+#UMask=0077
+
+# Consider locking down all areas of /etc which hold machine identity keys, etc
+InaccessiblePaths=/etc/ssh
+
+# If you have systemd >= 247
+#ProtectProc=invisible
+
+# If you have systemd >= 248
+#PrivateIPC=true
+
+# Optional: writable directory for JetStream.
+# See also: Unit.ConditionPathIsMountPoint
+ReadWritePaths=/var/lib/nats
+
+# Optional: resource control.
+# Replace weights by values that make sense for your situation.
+# For a list of all options see:
+# https://www.freedesktop.org/software/systemd/man/systemd.resource-control.html
+#CPUAccounting=true
+#CPUWeight=100 # of 10000
+#IOAccounting=true
+#IOWeight=100 # of 10000
+#MemoryAccounting=true
+#MemoryMax=1GB
+#IPAccounting=true
 
 [Install]
 WantedBy=multi-user.target
+# If you install this service as nats-server.service and want 'nats'
+# to work as an alias, then uncomment this next line:
+Alias=nats.service
 EOF
 sudo cp nats.service /etc/systemd/system/nats.service
+sudo mkdir -p /var/lib/nats/
 sudo adduser --system --group --no-create-home --shell /bin/false nats
 sudo systemctl enable nats --now
 }
@@ -108,7 +168,7 @@ get_rootless() {
         mkdir -p /home/ubuntu/.config/systemd/user/
         cp k3s-rootless.service /home/ubuntu/.config/systemd/user/k3s-rootless.service
         printf "[Service]\nDelegate=cpu cpuset io memory pids\n" > delegate.conf
-        printf "net.ipv4.ip_forward=1\nnet.ipv6.conf.all.forwarding=1\n" | sudo tee -a /etc/sysctl.conf /dev/null
+        printf "net.ipv4.ip_forward=1\nnet.ipv6.conf.all.forwarding=1\nfs.inotify.max_user_instances=256\n" | sudo tee -a /etc/sysctl.conf /dev/null
         sudo mkdir -p /etc/systemd/system/user@.service.d/
         sudo cp ~/delegate.conf /etc/systemd/system/user@.service.d/delegate.conf
         sudo tee -a /etc/modules <<EOF
@@ -141,7 +201,7 @@ EOF
         #sudo sysctl --system
         #systemctl --user daemon-reload
         #sudo update-grub
-        printf "you'll need to update /etc/default/grub and add systemd.unified_cgroup_hierarchy=1 to GRUB_CMDLINE_LINUX_DEFAULT=""\n"
+        printf "you'll need to update /etc/default/grub and add systemd.unified_cgroup_hierarchy=1 cgroup_no_v1=all to GRUB_CMDLINE_LINUX_DEFAULT=""\n"
         printf "You'll need to update your packages then install uidmap and reboot to finish the setup.\n"
     fi
 }
@@ -150,7 +210,7 @@ EOF
 set_harden() {
     _product="${1:-$PRODUCT}"
     case "${_product}" in
-    rke2) printf "on_oovm.panic_on_oom=0 \nvm.overcommit_memory=1 \nkernel.panic=10 \nkernel.panic_ps=1 \nkernel.panic_on_oops=1 \nkernel.keys.root_maxbytes=25000000" > ~/60-rke2-cis.conf
+    rke2) printf "on_oovm.panic_on_oom=0 \nvm.overcommit_memory=1 \nkernel.panic=10 \nkernel.panic_ps=1 \nkernel.panic_on_oops=1 \nkernel.keys.root_maxbytes=25000000 \nfs.file-max=999999" > ~/60-rke2-cis.conf
           sudo cp 60-rke2-cis.conf /etc/sysctl.d/
           sudo sysctl -p /etc/sysctl.d/60-rke2-cis.conf
           printf "SELINUX=permissive \n" > ~/config
@@ -160,7 +220,7 @@ set_harden() {
           sudo grub2-mkconfig -o /boot/grub2/grub.cfg
           sudo chcon -R -v system_u:object_r:usr_t:s0 ~/.ssh/
             ;;
-    k3s) printf "on_oovm.panic_on_oom=0 \nvm.overcommit_memory=1 \nkernel.panic=10 \nkernel.panic_ps=1 \nkernel.panic_on_oops=1 \nkernel.keys.root_maxbytes=25000000" > ~/90-kubelet.conf
+    k3s) printf "on_oovm.panic_on_oom=0 \nvm.overcommit_memory=1 \nkernel.panic=10 \nkernel.panic_ps=1 \nkernel.panic_on_oops=1 \nkernel.keys.root_maxbytes=25000000 \nfs.file-max=999999" > ~/90-kubelet.conf
          sudo cp 90-kubelet.conf /etc/sysctl.d/
          sudo sysctl -p /etc/sysctl.d/90-kubelet.conf
          printf "SELINUX=permissive \n" > ~/config
@@ -187,6 +247,8 @@ set_figs() {
     sudo mkdir -p /etc/rancher/"${_product}"/;
     #sudo cat <<EOF >> "${_product}"-config.yaml
     cat <<EOF >> "${_product}"-config.yaml
+node-external-ip: IPV4,IPV6
+node-ip: $(hostname -I)
 server: https://
 write-kubeconfig-mode: 644
 debug: true
@@ -194,7 +256,6 @@ token: YOUR_TOKEN_HERE
 cni: multus,cilium
 profile: cis
 selinux: true
-node-external-ip: IPV4,IPV6
 #protect-kernel-defaults: true
 #cluster-init: true
 
@@ -202,8 +263,10 @@ node-external-ip: IPV4,IPV6
 #pod-security-admission-config-file: "/etc/rancher/rke2/base-pss.yaml"
 
 #datastore-endpoint: etcd, Mysql, Postgres, Sqlite, nats-jetstream
+# postgres://username:password@hostname:port/database-name
+# mysql://username:password@tcp(hostname:3306)/database-name
+
 ##EDIT these
-node-ip: $(hostname -I)
 ##DUALSTACK note reverse the IPV4/IPV6 order to prioritize IPV6 over IPV4 if needed during testing
 #cluster-cidr: 10.42.0.0/16,2001:cafe:42:0::/56
 #service-cidr: 10.43.0.0/16,2001:cafe:42:1::/112
@@ -551,4 +614,51 @@ spec:
   enableAI: true
 EOF
 
+}
+
+set_distros() {
+  _product="${1:-$PRODUCT}"
+  _version="${2:-$VERSION}"
+
+  export ACCESS_KEY_LOCAL="/path/to/your/key.pem"
+  export IMG_NAME=REQUIRED
+  export IMG_TAG=REQUIRED
+  export TAG_NAME=recently_created
+  export LOG_LEVEL=debug
+  export INSTALL_VERSION="${_version}"
+  export ENV_PRODUCT="${_product}"
+  case "${_product}" in
+  k3s) export ENV_TFVARS=k3s.tfvars;;
+  rke2) export ENV_TFVARS=rke2.tfvars;;
+  esac  
+}
+
+setup_prow() {
+  read -p "Enter your GitHub Organization name: " GITHUB_ORG
+  export GITHUB_ORG
+
+  read -p "Enter your GitHub Token: " GITHUB_TOKEN
+  export GITHUB_TOKEN
+
+  read -p "Enter your GitHub App ID: " GITHUB_APP_ID
+  export GITHUB_APP_ID
+
+  read -p "Enter your HMAC Token: " HMAC_TOKEN
+  export HMAC_TOKEN
+
+  read -p "Enter your MinIO Root User: " MINIO_ROOT_USER
+  export MINIO_ROOT_USER
+
+  read -p "Enter your MinIO Root Password: " MINIO_ROOT_PASSWORD
+  export MINIO_ROOT_PASSWORD
+
+  read -p "Enter your Prow Host URL (e.g., http://prow.example.com): " PROW_HOST_URL
+  export PROW_HOST_URL
+
+  echo "Prow environment variables set up interactively."
+}
+
+set_awsadm() {
+  export AWS_B64ENCODED_CREDENTIALS=$(clusterawsadm bootstrap credentials encode-as-profile)
+  clusterctl init --infrastructure aws
 }

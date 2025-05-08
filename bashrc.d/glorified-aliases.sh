@@ -166,7 +166,10 @@ go_sono() {
 sono_results() {
     _product="${1:-$PRODUCT}"
     has_bin sonobuoy
-    _results=$(sonobuoy retrieve --kubeconfig /etc/rancher/"${_product}"/"${_product}".yaml)
+    _kubefig="${KUBECONFIG}"
+    #if [ -z "${KUBECONFIG}" ]; then _kubefig="/etc/rancher/"${_product}"/"${_product}".yaml" ; fi 
+
+    _results=$(sonobuoy retrieve --kubeconfig "${_kubefig}")       
     sonobuoy results "${_results}"    
 }
 
@@ -183,15 +186,15 @@ make_ranch() {
     helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
     helm repo add jetstack https://charts.jetstack.io
     helm repo update
-    kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.11.0/cert-manager.crds.yaml
+    kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.16.1/cert-manager.crds.yaml
     kubectl create namespace cattle-system
     wait
-    helm install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --version v1.11.0
+    helm install cert-manager jetstack/cert-manager -n cert-manager --create-namespace --version v1.16.1
     wait
     echo "checking cert-manager pods.... "
     kubectl get pods -n cert-manager
     wait
-    helm install rancher rancher-latest/rancher -n cattle-system --set hostname=break.qa.web --set rancherImageTag=v2.7-head --version=v2.7-head 
+    helm install rancher rancher-latest/rancher -n cattle-system --set hostname=$(echo $HOSTNAME) --set rancherImageTag=v2.10-head --version=v2.10-head 
     #wait
     watch -n 7 kubectl -n cattle-system rollout status deploy/rancher
     #kubectl port-forward "$(kubectl get pods --selector "app.kubernetes.io/name=traefik" --output=name -A)" 9000:9000 -A
